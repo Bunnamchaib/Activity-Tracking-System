@@ -11,6 +11,33 @@
 <title>Activity Tracking System</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <style>
+/* ─── Card Nav Arrows ─── */
+.card-nav-arrow{
+  position:absolute;top:50%;transform:translateY(-50%);
+  width:36px;height:36px;border-radius:50%;
+  background:var(--card);border:1px solid var(--border);
+  display:flex;align-items:center;justify-content:center;
+  cursor:pointer;z-index:10;font-size:18px;
+  box-shadow:var(--shadow);transition:.2s;
+  user-select:none;
+}
+.card-nav-arrow:hover{background:var(--accent);color:#fff;border-color:var(--accent);}
+.card-nav-arrow.left{left:-18px;}
+.card-nav-arrow.right{right:-18px;}
+.card-nav-arrow.disabled{opacity:.3;pointer-events:none;}
+
+/* ─── Progress Bar ─── */
+#progress-bar{
+  position:fixed;top:0;left:0;right:0;height:3px;z-index:9999;
+  background:linear-gradient(90deg,var(--accent),#60a5fa,var(--accent));
+  background-size:200% 100%;
+  animation:progressAnim 1.2s linear infinite;
+  display:none;
+  transition:opacity .3s;
+}
+@keyframes progressAnim{0%{background-position:100% 0}100%{background-position:-100% 0}}
+.btn-loading{opacity:.7;pointer-events:none;}
+
 /* ─── CSS Variables & Reset ─── */
 :root{
   --accent:#2563eb;
@@ -328,8 +355,9 @@ textarea.form-control{min-height:100px;resize:vertical;line-height:1.5;word-brea
 /* Announcement slider */
 #announce-slider{position:relative;overflow:hidden;border-radius:var(--radius);
   background:var(--card);box-shadow:var(--shadow);}
-.announce-slide{display:none;padding:16px;animation:fadeIn .3s ease;}
+.announce-slide{display:none;padding:20px 16px;animation:fadeIn .3s ease;min-height:100px;}
 .announce-slide.active{display:block;}
+.announce-img{width:100%;max-height:200px;object-fit:cover;border-radius:8px;margin-top:10px;}
 .announce-dots{display:flex;justify-content:center;gap:6px;padding:8px;}
 .announce-dot{width:8px;height:8px;border-radius:50%;background:var(--border);cursor:pointer;transition:.2s;}
 .announce-dot.active{background:var(--accent);}
@@ -520,6 +548,7 @@ textarea.form-control{min-height:100px;resize:vertical;line-height:1.5;word-brea
 </div>
 
 <!-- Main App -->
+<div id="progress-bar"></div>
 <div id="app" style="display:none;">
   <!-- Ticker -->
   <div id="ticker">
@@ -530,6 +559,8 @@ textarea.form-control{min-height:100px;resize:vertical;line-height:1.5;word-brea
   <!-- Top bar -->
   <div id="topbar">
     <span class="logo">📊 Activity Tracking System</span>
+    <div id="topbar-user" style="font-size:12px;opacity:.85;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px;flex:1;text-align:center;"></div>
+    <div id="topbar-clock" style="font-size:12px;opacity:.85;font-variant-numeric:tabular-nums;white-space:nowrap;margin-right:6px;"></div>
     <button class="avatar-btn" onclick="goPage('profile')">
       <img id="top-avatar" src="" onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 36 36%22><circle cx=%2218%22 cy=%2218%22 r=%2218%22 fill=%22%23ffffff33%22/><text x=%2218%22 y=%2224%22 text-anchor=%22middle%22 font-size=%2218%22 fill=%22white%22>👤</text></svg>'" alt="avatar"/>
     </button>
@@ -541,10 +572,10 @@ textarea.form-control{min-height:100px;resize:vertical;line-height:1.5;word-brea
     <div id="page-home" class="page active">
       <div id="announce-slider" style="margin-bottom:12px;"></div>
       <div class="stats-row">
-        <div class="stat-card"><div class="num" id="home-total">0</div><div class="lbl">กิจกรรมทั้งหมด</div></div>
-        <div class="stat-card"><div class="num" id="home-month">0</div><div class="lbl">เดือนนี้</div></div>
-        <div class="stat-card"><div class="num" id="home-booking">0</div><div class="lbl">นัดที่มา</div></div>
-        <div class="stat-card"><div class="num" id="home-problem">0</div><div class="lbl">มีปัญหา</div></div>
+        <div class="stat-card" onclick="goPage('dashboard');setDashFilter(document.querySelector('#dash-filters [data-status=all]'));" style="cursor:pointer;"><div class="num" id="home-total">0</div><div class="lbl">กิจกรรมทั้งหมด</div></div>
+        <div class="stat-card" onclick="goPage('dashboard');setDashFilter(document.querySelector('#dash-filters [data-status=all]'));" style="cursor:pointer;"><div class="num" id="home-month">0</div><div class="lbl">เดือนนี้</div></div>
+        <div class="stat-card" onclick="goPage('calendar');" style="cursor:pointer;"><div class="num" id="home-booking">0</div><div class="lbl">นัดที่มา</div></div>
+        <div class="stat-card" onclick="goPage('dashboard');setTimeout(()=>setDashFilter(document.querySelector('#dash-filters [data-status=problem]')),50);" style="cursor:pointer;"><div class="num" id="home-problem">0</div><div class="lbl">มีปัญหา</div></div>
       </div>
       <div class="card">
         <div class="card-title">📢 เพิ่มประกาศ</div>
@@ -573,6 +604,24 @@ textarea.form-control{min-height:100px;resize:vertical;line-height:1.5;word-brea
         <button class="filter-pill" data-status="problem" onclick="setDashFilter(this)">🚨 มีปัญหา</button>
       </div>
       <div class="stats-row" id="dash-stats-row"></div>
+      <div style="display:flex;gap:8px;align-items:center;margin-bottom:8px;flex-wrap:wrap;">
+        <div style="flex:1;min-width:120px;">
+          <div style="font-size:11px;color:var(--sub);margin-bottom:3px;">จากวันที่</div>
+          <input type="date" id="dash-date-from" onchange="renderDashboard()" style="width:100%;padding:6px 10px;border:1px solid var(--border);border-radius:8px;background:var(--card);color:var(--text);font-size:13px;">
+        </div>
+        <div style="flex:1;min-width:120px;">
+          <div style="font-size:11px;color:var(--sub);margin-bottom:3px;">ถึงวันที่</div>
+          <input type="date" id="dash-date-to" onchange="renderDashboard()" style="width:100%;padding:6px 10px;border:1px solid var(--border);border-radius:8px;background:var(--card);color:var(--text);font-size:13px;">
+        </div>
+        <div style="flex-shrink:0;padding-top:18px;">
+          <select id="dash-limit" onchange="renderDashboard()" style="padding:6px 10px;border:1px solid var(--border);border-radius:8px;background:var(--card);color:var(--text);font-size:13px;">
+            <option value="0">ทั้งหมด</option>
+            <option value="15" selected>15 รายการ</option>
+            <option value="30">30 รายการ</option>
+            <option value="50">50 รายการ</option>
+          </select>
+        </div>
+      </div>
       <div id="dash-cards"></div>
     </div>
 
@@ -606,19 +655,50 @@ textarea.form-control{min-height:100px;resize:vertical;line-height:1.5;word-brea
         <button class="filter-pill" data-range="all" onclick="setStatsRange(this)">ทั้งหมด</button>
       </div>
       <div class="stats-row" id="stats-row"></div>
-      <div class="card">
-        <div style="display:flex;justify-content:space-between;align-items:center;">
-          <div class="card-title">🏅 ลูกค้าที่เข้าพบบ่อย</div>
-          <button onclick="toggleSection('stats-customers')" style="font-size:12px;color:var(--sub);">แสดง/ซ่อน</button>
+
+      <!-- ลูกค้าที่เข้าพบบ่อย -->
+      <div class="card" style="margin-bottom:10px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+          <div class="card-title" style="margin:0;">🏅 ลูกค้าที่เข้าพบบ่อย</div>
+          <button onclick="toggleSection('stats-customers')" style="font-size:12px;color:var(--sub);padding:4px 8px;border:1px solid var(--border);border-radius:6px;">แสดง/ซ่อน</button>
         </div>
-        <div id="stats-customers" style="display:none;"></div>
+        <div id="stats-customers"></div>
       </div>
-      <div class="card mt-8">
-        <div style="display:flex;justify-content:space-between;align-items:center;">
-          <div class="card-title">📋 หัวข้อที่ติดตามบ่อย</div>
-          <button onclick="toggleSection('stats-subjects')" style="font-size:12px;color:var(--sub);">แสดง/ซ่อน</button>
+
+      <!-- หัวข้อที่ติดตามบ่อย -->
+      <div class="card" style="margin-bottom:10px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+          <div class="card-title" style="margin:0;">📋 หัวข้อที่ติดตามบ่อย</div>
+          <button onclick="toggleSection('stats-subjects')" style="font-size:12px;color:var(--sub);padding:4px 8px;border:1px solid var(--border);border-radius:6px;">แสดง/ซ่อน</button>
         </div>
-        <div id="stats-subjects" style="display:none;"></div>
+        <div id="stats-subjects"></div>
+      </div>
+
+      <!-- ต้องติดตามสัปดาห์นี้ -->
+      <div class="card" style="margin-bottom:10px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+          <div class="card-title" style="margin:0;">🔔 ต้องติดตามสัปดาห์นี้</div>
+          <button onclick="toggleSection('stats-followup-week')" style="font-size:12px;color:var(--sub);padding:4px 8px;border:1px solid var(--border);border-radius:6px;">แสดง/ซ่อน</button>
+        </div>
+        <div id="stats-followup-week"></div>
+      </div>
+
+      <!-- รายการที่มีปัญหา -->
+      <div class="card" style="margin-bottom:10px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+          <div class="card-title" style="margin:0;">🚨 รายการที่มีปัญหา</div>
+          <button onclick="toggleSection('stats-problems')" style="font-size:12px;color:var(--sub);padding:4px 8px;border:1px solid var(--border);border-radius:6px;">แสดง/ซ่อน</button>
+        </div>
+        <div id="stats-problems"></div>
+      </div>
+
+      <!-- นัดที่กำลังจะมาถึงสัปดาห์นี้ -->
+      <div class="card" style="margin-bottom:10px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+          <div class="card-title" style="margin:0;">📅 นัดที่กำลังมาถึงสัปดาห์นี้</div>
+          <button onclick="toggleSection('stats-upcoming')" style="font-size:12px;color:var(--sub);padding:4px 8px;border:1px solid var(--border);border-radius:6px;">แสดง/ซ่อน</button>
+        </div>
+        <div id="stats-upcoming"></div>
       </div>
     </div>
 
@@ -671,10 +751,30 @@ textarea.form-control{min-height:100px;resize:vertical;line-height:1.5;word-brea
         <button class="filter-pill" data-range="today" onclick="setActRange(this)">วันนี้</button>
         <button class="filter-pill" data-range="week" onclick="setActRange(this)">สัปดาห์นี้</button>
         <button class="filter-pill" data-range="month" onclick="setActRange(this)">เดือนนี้</button>
+        <button class="filter-pill" data-range="year" onclick="setActRange(this)">ปีนี้</button>
       </div>
-      <div class="search-bar" style="margin-bottom:12px;">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
-        <input id="act-search" type="text" placeholder="ค้นหา..." oninput="renderActivity()"/>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:8px;">
+        <div class="search-bar" style="flex:1;min-width:160px;margin-bottom:0;">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+          <input id="act-search" type="text" placeholder="ค้นหา..." oninput="renderActivity()"/>
+        </div>
+        <select id="act-limit" onchange="renderActivity()" style="padding:8px 10px;border:1px solid var(--border);border-radius:8px;background:var(--card);color:var(--text);font-size:13px;">
+          <option value="15">15 รายการ</option>
+          <option value="30">30 รายการ</option>
+          <option value="50">50 รายการ</option>
+          <option value="100">100 รายการ</option>
+          <option value="0">ทั้งหมด</option>
+        </select>
+      </div>
+      <div style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap;">
+        <div style="flex:1;min-width:120px;">
+          <div style="font-size:11px;color:var(--sub);margin-bottom:3px;">จากวันที่</div>
+          <input type="date" id="act-date-from" onchange="renderActivity()" style="width:100%;padding:6px 10px;border:1px solid var(--border);border-radius:8px;background:var(--card);color:var(--text);font-size:13px;">
+        </div>
+        <div style="flex:1;min-width:120px;">
+          <div style="font-size:11px;color:var(--sub);margin-bottom:3px;">ถึงวันที่</div>
+          <input type="date" id="act-date-to" onchange="renderActivity()" style="width:100%;padding:6px 10px;border:1px solid var(--border);border-radius:8px;background:var(--card);color:var(--text);font-size:13px;">
+        </div>
       </div>
       <div id="activity-list"></div>
     </div>
@@ -686,11 +786,27 @@ textarea.form-control{min-height:100px;resize:vertical;line-height:1.5;word-brea
         <div class="profile-name" id="profile-name-display">-</div>
         <div class="profile-sub" id="profile-pos-display">-</div>
       </div>
-      <div class="stats-row">
-        <div class="stat-card" onclick="goPage('dashboard')"><div class="num" id="prof-visits">0</div><div class="lbl">เข้าพบเดือนนี้</div></div>
-        <div class="stat-card"><div class="num" id="prof-ontrack">0</div><div class="lbl">ตามเป้า</div></div>
-        <div class="stat-card"><div class="num" id="prof-follow">0</div><div class="lbl">ติดตาม</div></div>
-        <div class="stat-card"><div class="num" id="prof-problem">0</div><div class="lbl">มีปัญหา</div></div>
+      <!-- Profile stats with range selector -->
+      <div style="margin:8px 16px 4px;">
+        <div class="filter-row" style="flex-wrap:wrap;">
+          <button class="filter-pill" data-prange="week"  onclick="setProfileRange(this)">สัปดาห์</button>
+          <button class="filter-pill active" data-prange="month" onclick="setProfileRange(this)">เดือนนี้</button>
+          <button class="filter-pill" data-prange="year"  onclick="setProfileRange(this)">ปีนี้</button>
+          <button class="filter-pill" data-prange="3y"    onclick="setProfileRange(this)">3 ปี</button>
+          <button class="filter-pill" data-prange="5y"    onclick="setProfileRange(this)">5 ปี</button>
+          <button class="filter-pill" data-prange="all"   onclick="setProfileRange(this)">ทั้งหมด</button>
+        </div>
+      </div>
+      <div class="stats-row" style="margin:8px 16px;">
+        <div class="stat-card"><div class="num" id="prof-visits">0</div><div class="lbl">เข้าพบ</div></div>
+        <div class="stat-card"><div class="num" id="prof-ontrack">0</div><div class="lbl">✅ ตามเป้า</div></div>
+        <div class="stat-card"><div class="num" id="prof-follow">0</div><div class="lbl">🔄 ติดตาม</div></div>
+        <div class="stat-card"><div class="num" id="prof-problem">0</div><div class="lbl">🚨 ปัญหา</div></div>
+      </div>
+      <!-- Top customers for this user -->
+      <div class="card" style="margin:0 0 10px;">
+        <div class="card-title">🏅 ลูกค้าที่ฉันเข้าพบบ่อย</div>
+        <div id="prof-top-customers" style="font-size:13px;"></div>
       </div>
       <div class="card">
         <div class="card-title">✏️ แก้ไขข้อมูล</div>
@@ -725,14 +841,35 @@ textarea.form-control{min-height:100px;resize:vertical;line-height:1.5;word-brea
     <div id="page-settings" class="page">
       <div class="section-title">⚙️ ตั้งค่า</div>
       <div class="card">
-        <div class="card-title">🎨 ธีม</div>
+        <div class="card-title">🎨 ธีมและสี</div>
         <div class="setting-row">
-          <span>Dark Mode</span>
+          <span>Dark Mode 🌙</span>
           <div class="toggle" id="dark-toggle" onclick="toggleDark()"></div>
         </div>
-        <div class="mt-8">
-          <div class="form-label">สีหลัก</div>
+        <div class="mt-12">
+          <div class="form-label" style="margin-bottom:8px;">สีหลัก (เลือก Preset)</div>
           <div class="color-swatches" id="color-swatches"></div>
+        </div>
+        <div class="mt-8">
+          <div class="form-label" style="margin-bottom:6px;">หรือเลือกสีเอง</div>
+          <div style="display:flex;gap:10px;align-items:center;">
+            <input type="color" id="custom-color-picker" value="#2563eb"
+              oninput="setAccent(this.value)"
+              style="width:44px;height:44px;border:none;border-radius:8px;cursor:pointer;padding:2px;background:none;">
+            <span style="font-size:13px;color:var(--sub);" id="custom-color-val">#2563eb</span>
+          </div>
+        </div>
+        <div class="mt-10">
+          <div class="form-label" style="margin-bottom:6px;">ความโค้งของการ์ด: <span id="radius-val">12</span>px</div>
+          <input type="range" id="radius-slider" min="0" max="24" value="12" step="2"
+            oninput="setRadius(this.value)"
+            style="width:100%;accent-color:var(--accent);">
+        </div>
+        <div class="mt-10">
+          <div class="form-label" style="margin-bottom:6px;">ขนาดฟอนต์: <span id="fontsize-val">15</span>px</div>
+          <input type="range" id="fontsize-slider" min="13" max="18" value="15" step="1"
+            oninput="setFontSize(this.value)"
+            style="width:100%;accent-color:var(--accent);">
         </div>
       </div>
       <div class="card mt-12">
@@ -803,7 +940,16 @@ textarea.form-control{min-height:100px;resize:vertical;line-height:1.5;word-brea
 <div class="modal" style="position:relative;">
   <div class="modal-handle"></div>
   <button class="modal-close" onclick="closeModal('timeline-modal')">✕</button>
-  <div class="modal-title" id="timeline-modal-title">ประวัติการเข้าพบ</div>
+  <div style="display:flex;align-items:center;gap:6px;margin-bottom:2px;">
+    <button id="timeline-prev-btn" onclick="timelineNav(-1)" title="บริษัทก่อนหน้า"
+      style="width:32px;height:32px;border-radius:50%;border:1px solid var(--border);background:var(--card);font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:.2s;">‹</button>
+    <div style="flex:1;text-align:center;">
+      <div class="modal-title" id="timeline-modal-title" style="margin-bottom:0;">ประวัติการเข้าพบ</div>
+      <div id="timeline-nav-indicator" style="font-size:11px;color:var(--sub);"></div>
+    </div>
+    <button id="timeline-next-btn" onclick="timelineNav(1)" title="บริษัทถัดไป"
+      style="width:32px;height:32px;border-radius:50%;border:1px solid var(--border);background:var(--card);font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:.2s;">›</button>
+  </div>
   <div id="timeline-content"></div>
 </div>
 </div>
@@ -1060,10 +1206,20 @@ textarea.form-control{min-height:100px;resize:vertical;line-height:1.5;word-brea
 <div id="toast"></div>
 
 <script>
+// ── OAuth2 Redirect handler (runs if this page is the popup) ──
+(function() {
+  if(window.location.hash && window.location.hash.includes('access_token')) {
+    // We are the OAuth callback popup — nothing to do, opener polls us
+    document.body.innerHTML = '<div style="font-family:sans-serif;text-align:center;padding:40px;"><div style="font-size:40px;">✅</div><p>กำลังปิดหน้าต่าง...</p></div>';
+    // Don't run the rest of the app
+    throw new Error('OAuth redirect page — stop execution');
+  }
+})();
+
 // ═══════════════════════════════════════════════════════════════
 // CONFIG
 // ═══════════════════════════════════════════════════════════════
-const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbwOJNwDT8zR0JjYHm6NfRgDeI6fLsWF_6K8L0Ampbg8plUIhG7KlH3n5BCyW1l9LGdw/exec";
+const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbzYo0a_jwhCVWr9AnV7gFWXEMFRYpWoGEwNG-U5ujK-kHOGaCy1Q7MTFVvp5s4gvGJt/exec";
 
 // ═══════════════════════════════════════════════════════════════
 // STATE
@@ -1275,9 +1431,14 @@ function doLogin() {
   const u = document.getElementById('login-user').value.trim();
   const p = document.getElementById('login-pass').value;
   if(!u||!p){showLoginAlert('กรุณากรอกข้อมูล'); return;}
-  document.getElementById('login-btn').textContent = 'กำลังเข้าสู่ระบบ...';
+  const btn = document.getElementById('login-btn');
+  btn.textContent = 'กำลังเข้าสู่ระบบ...';
+  btn.disabled = true;
+  showLoading();
   api('login',{username:u,password:p}).then(r=>{
-    document.getElementById('login-btn').textContent = 'เข้าสู่ระบบ';
+    btn.textContent = 'เข้าสู่ระบบ';
+    btn.disabled = false;
+    hideLoading();
     if(r.ok){
       STATE.user = r.data;
       localStorage.setItem('ats_user', JSON.stringify({...r.data, savedAt: Date.now()}));
@@ -1321,12 +1482,95 @@ function checkSavedLogin() {
 }
 
 // ═══════════════════════════════════════════════════════════════
+// LOADING INDICATOR
+// ═══════════════════════════════════════════════════════════════
+function showLoading(btnEl) {
+  document.getElementById('progress-bar').style.display='block';
+  if(btnEl){ btnEl.classList.add('btn-loading'); btnEl._origText=btnEl.textContent; btnEl.textContent='⏳ '+btnEl._origText; }
+}
+function hideLoading(btnEl) {
+  document.getElementById('progress-bar').style.display='none';
+  if(btnEl){ btnEl.classList.remove('btn-loading'); if(btnEl._origText) btnEl.textContent=btnEl._origText; }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// LAZY LOAD — โหลดข้อมูลตามหน้าที่เปิด
+// ═══════════════════════════════════════════════════════════════
+const _loaded = {};  // track which pages have been loaded
+
+async function lazyLoad(page) {
+  if(_loaded[page]) return;
+  _loaded[page] = true;
+  showLoading();
+  try {
+    if(page === 'dashboard') {
+      const r = await api('getSalesLog');
+      if(r.ok){ STATE.salesLog=r.data; localStorage.setItem('ats_saleslog',JSON.stringify(r.data)); }
+      renderDashboard();
+    }
+    else if(page === 'calendar') {
+      const [b,l] = await Promise.all([api('getBookings'),api('getSalesLog')]);
+      if(b.ok){ STATE.bookings=b.data; localStorage.setItem('ats_bookings',JSON.stringify(b.data)); }
+      if(l.ok){ STATE.salesLog=l.data; localStorage.setItem('ats_saleslog',JSON.stringify(l.data)); }
+      renderCalendar();
+    }
+    else if(page === 'stats') {
+      const r = await api('getStats');
+      if(r.ok){ STATE.stats=r.data; }
+      renderStats(); renderCharts();
+    }
+    else if(page === 'activity') {
+      const r = await api('getActivityLog');
+      if(r.ok){ STATE.activityLog=r.data; localStorage.setItem('ats_actlog',JSON.stringify(r.data)); }
+      renderActivity();
+    }
+    else if(page === 'lost') {
+      const r = await api('getLostDeals');
+      if(r.ok){ STATE.lostDeals=r.data; localStorage.setItem('ats_lost',JSON.stringify(r.data)); }
+      renderLostDeals();
+    }
+    else if(page === 'pipeline') {
+      if(!_loaded['dashboard']) {
+        const r = await api('getSalesLog');
+        if(r.ok){ STATE.salesLog=r.data; localStorage.setItem('ats_saleslog',JSON.stringify(r.data)); }
+        _loaded['dashboard'] = true;
+      }
+      renderPipeline();
+    }
+  } catch(e) { console.warn('lazyLoad error:', e); }
+  finally { hideLoading(); }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// CLOCK
+// ═══════════════════════════════════════════════════════════════
+function startClock() {
+  function tick() {
+    const now = new Date();
+    const h = now.getHours().toString().padStart(2,'0');
+    const m = now.getMinutes().toString().padStart(2,'0');
+    const s = now.getSeconds().toString().padStart(2,'0');
+    const el = document.getElementById('topbar-clock');
+    if(el) el.textContent = `${h}:${m}:${s}`;
+    // update username display
+    const uel = document.getElementById('topbar-user');
+    if(uel && STATE.user) uel.textContent = STATE.user.firstName || STATE.user.username || '';
+  }
+  tick();
+  setInterval(tick, 1000);
+}
+
+// ═══════════════════════════════════════════════════════════════
 // APP INIT
 // ═══════════════════════════════════════════════════════════════
 async function initApp() {
   loadSettings();
   updateTopAvatar();
   loadOfflineDrafts();
+  startClock();
+  // Reset lazy-load cache on each login so fresh data is fetched
+  Object.keys(_loaded).forEach(k => delete _loaded[k]);
+  showLoading();
 
   // Load all data
   const [logs, bookings, lost, ann, actLog, custs, models, atts, stats] = await Promise.all([
@@ -1341,11 +1585,16 @@ async function initApp() {
     api('getStats'),
   ]);
 
-  if(logs.ok)    STATE.salesLog      = logs.data;
-  if(bookings.ok)STATE.bookings      = bookings.data;
-  if(lost.ok)    STATE.lostDeals     = lost.data;
-  if(ann.ok)     STATE.announcements = ann.data;
-  if(actLog.ok)  STATE.activityLog   = actLog.data;
+  if(logs.ok)    { STATE.salesLog  = logs.data;    localStorage.setItem('ats_saleslog', JSON.stringify(logs.data)); }
+  else { const c=localStorage.getItem('ats_saleslog'); if(c) try{STATE.salesLog=JSON.parse(c);}catch{} }
+  if(bookings.ok){ STATE.bookings = bookings.data; localStorage.setItem('ats_bookings', JSON.stringify(bookings.data)); }
+  else { const c=localStorage.getItem('ats_bookings'); if(c) try{STATE.bookings=JSON.parse(c);}catch{} }
+  if(lost.ok)   { STATE.lostDeals     = lost.data;    localStorage.setItem('ats_lost', JSON.stringify(lost.data)); }
+  else { const c=localStorage.getItem('ats_lost'); if(c) try{STATE.lostDeals=JSON.parse(c);}catch{} }
+  if(ann.ok)    { STATE.announcements = ann.data;    localStorage.setItem('ats_ann', JSON.stringify(ann.data)); }
+  else { const c=localStorage.getItem('ats_ann'); if(c) try{STATE.announcements=JSON.parse(c);}catch{} }
+  if(actLog.ok) { STATE.activityLog   = actLog.data; localStorage.setItem('ats_actlog', JSON.stringify(actLog.data)); }
+  else { const c=localStorage.getItem('ats_actlog'); if(c) try{STATE.activityLog=JSON.parse(c);}catch{} }
   if(custs.ok)   STATE.customers     = custs.data;
   if(models.ok)  STATE.models        = models.data;
   if(atts.ok)    STATE.attendees     = atts.data;
@@ -1359,6 +1608,7 @@ async function initApp() {
   renderActivity();
   renderProfile();
   initSettings();
+  hideLoading();
 
   // Show first announcement page
   goPage('home');
@@ -1378,8 +1628,17 @@ function goPage(page) {
   document.querySelectorAll('.nav-item').forEach(n => {
     n.classList.toggle('active', n.dataset.page === page);
   });
-  if(page==='pipeline') renderPipeline();
+  // Lazy-load data for pages that need fresh data
+  if(['dashboard','calendar','stats','activity','lost','pipeline'].includes(page)) {
+    lazyLoad(page);
+  }
   closeFabMenu();
+}
+
+// Force reload a page (clear cache)
+function reloadPage(page) {
+  delete _loaded[page];
+  lazyLoad(page);
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -1398,10 +1657,14 @@ function renderHome() {
     const d = new Date(p[2], parseInt(p[1])-1, parseInt(p[0]));
     return d >= new Date();
   });
-  document.getElementById('home-total').textContent   = STATE.salesLog.length;
-  document.getElementById('home-month').textContent   = monthLogs.length;
-  document.getElementById('home-booking').textContent = upcoming.length;
-  document.getElementById('home-problem').textContent = STATE.salesLog.filter(l=>l.status==='problem').length;
+  const totalCount   = STATE.salesLog.length;
+  const monthCount   = monthLogs.length;
+  const bookingCount = upcoming.length;
+  const problemCount = STATE.salesLog.filter(l=>l.status==='problem').length;
+  document.getElementById('home-total').textContent   = totalCount;
+  document.getElementById('home-month').textContent   = monthCount;
+  document.getElementById('home-booking').textContent = bookingCount;
+  document.getElementById('home-problem').textContent = problemCount;
 }
 
 function renderAnnouncements() {
@@ -1411,9 +1674,11 @@ function renderAnnouncements() {
 
   // Ticker
   const ticker = document.getElementById('ticker');
-  if(urgent.length > 0 && !sessionStorage.getItem('ticker-closed')) {
+  const closedIds = STATE._tickerClosedId || '';
+  const unreadUrgent = urgent.filter(a => !closedIds.includes(a.id));
+  if(unreadUrgent.length > 0) {
     ticker.style.display='block';
-    document.getElementById('ticker-text').textContent = urgent.map(u=>u.message).join('  ●  ');
+    document.getElementById('ticker-text').textContent = unreadUrgent.map(u=>u.message).join('  ●  ');
   }
 
   // Slider
@@ -1427,6 +1692,7 @@ function renderAnnouncements() {
         <p style="font-size:14px;line-height:1.6;word-break:break-word;">${escHtml(a.message)}</p>
         <button onclick="deleteAnnouncement('${a.id}')" style="flex-shrink:0;font-size:18px;color:var(--sub);padding:0 4px;">✕</button>
       </div>
+      ${a.imageUrl ? `<img src="${a.imageUrl}" class="announce-img" alt="ภาพประกาศ" onclick="openLightbox('${a.imageUrl}')">` : ''}
       <div class="announce-author">📢 ${escHtml(a.postedBy)} · ${a.createdAt}</div>
     </div>
   `).join('');
@@ -1447,18 +1713,56 @@ window.goSlide = function(i) {
 
 function closeTicker() {
   document.getElementById('ticker').style.display='none';
-  sessionStorage.setItem('ticker-closed','1');
+  STATE._tickerClosedId = (STATE.announcements.filter(a=>a.type==='urgent'&&a.active).map(a=>a.id).join(','));
+}
+
+
+STATE._annImgUrl = null;  // URL ของรูปประกาศ
+
+function previewAnnImg(input) {
+  const file = input.files[0]; if(!file) return;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    document.getElementById('ann-img-thumb').src = ev.target.result;
+    document.getElementById('ann-img-preview').style.display = 'block';
+    document.getElementById('ann-img-preview-name').textContent = file.name;
+    STATE._annImgFile = file;
+  };
+  reader.readAsDataURL(file);
+}
+
+function clearAnnImg() {
+  STATE._annImgFile = null;
+  STATE._annImgUrl  = null;
+  document.getElementById('ann-img-preview').style.display = 'none';
+  document.getElementById('ann-img-preview-name').textContent = '';
+  document.getElementById('ann-img-input').value = '';
 }
 
 async function addAnnouncement() {
   const type = document.getElementById('ann-type').value;
   const msg  = document.getElementById('ann-msg').value.trim();
   if(!msg) return toast('กรุณาใส่ข้อความ');
-  const r = await api('addAnnouncement',{ type, message:msg, postedBy:STATE.user?.firstName+' '+STATE.user?.lastName || STATE.user?.username });
+
+  let imgUrl = '';
+  if(STATE._annImgFile) {
+    toast('⏳ กำลังอัปโหลดรูป...');
+    showLoading();
+    try {
+      const compressed = await compressImage(STATE._annImgFile, 1200, 0.85);
+      const res = await gdriveUpload(compressed);
+      if(res.ok) imgUrl = res.url;
+    } catch(e) { toast('⚠️ อัปโหลดรูปไม่สำเร็จ: ' + e.message); }
+    finally { hideLoading(); }
+  }
+
+  const poster = (STATE.user?.firstName ? STATE.user.firstName+' '+STATE.user.lastName : STATE.user?.username) || 'unknown';
+  const r = await api('addAnnouncement',{ type, message:msg, imageUrl:imgUrl, postedBy:poster });
   if(r.ok) {
-    STATE.announcements.unshift({ id:r.data.id, type, message:msg, postedBy:STATE.user?.username, active:true });
+    STATE.announcements.unshift({ id:r.data.id, type, message:msg, imageUrl:imgUrl, postedBy:poster, active:true, createdAt:todayStr() });
     renderHome();
     document.getElementById('ann-msg').value='';
+    clearAnnImg();
     toast('✅ ประกาศแล้ว');
   }
 }
@@ -1484,6 +1788,10 @@ function setDashFilter(el) {
 function renderDashboard() {
   const query  = document.getElementById('dash-search')?.value.toLowerCase() || '';
   const filter = STATE.dashFilter;
+  const dateFrom = document.getElementById('dash-date-from')?.value || '';
+  const dateTo   = document.getElementById('dash-date-to')?.value   || '';
+  const limitEl  = document.getElementById('dash-limit');
+  const limit    = limitEl ? parseInt(limitEl.value) : 0;
 
   let logs = STATE.salesLog;
   if(filter !== 'all') logs = logs.filter(l=>l.status===filter);
@@ -1492,6 +1800,14 @@ function renderDashboard() {
     (l.model||'').toLowerCase().includes(query) ||
     (l.subject||'').toLowerCase().includes(query)
   );
+  if(dateFrom) {
+    const fromD = new Date(dateFrom);
+    logs = logs.filter(l=>{ const d=parseDate(l.visitDate); return d&&d>=fromD; });
+  }
+  if(dateTo) {
+    const toD = new Date(dateTo); toD.setHours(23,59,59);
+    logs = logs.filter(l=>{ const d=parseDate(l.visitDate); return d&&d<=toD; });
+  }
 
   // Group by customer → latest entry
   const byCustomer = {};
@@ -1512,12 +1828,26 @@ function renderDashboard() {
   `;
 
   const container = document.getElementById('dash-cards');
-  const entries = Object.values(byCustomer);
+  let entries = Object.values(byCustomer);
+  const totalEntries = entries.length;
+  if(limit > 0) entries = entries.slice(0, limit);
   if(entries.length===0){
     container.innerHTML=`<div class="empty-state"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><path d="M9 10h.01M15 10h.01M9.5 15a3.5 3.5 0 005 0"/></svg><p>ไม่พบข้อมูล</p></div>`;
     return;
   }
 
+  if(totalEntries > 0) {
+    const info = document.getElementById('dash-count-info') || (() => {
+      const el = document.createElement('div');
+      el.id = 'dash-count-info';
+      el.style.cssText = 'font-size:12px;color:var(--sub);padding:4px 0 8px;text-align:center;';
+      document.getElementById('dash-cards').before(el);
+      return el;
+    })();
+    info.textContent = limit > 0 && totalEntries > limit
+      ? `แสดง ${Math.min(limit,entries.length)} จาก ${totalEntries} บริษัท`
+      : `ทั้งหมด ${totalEntries} บริษัท`;
+  }
   container.innerHTML = entries.map(l => {
     const allVisits = STATE.salesLog.filter(v=>v.customerName===l.customerName);
     const img = l.images && l.images.length > 0 ? `<img class="img-thumb" src="${l.images[0]}" onerror="this.style.display='none'" alt="" style="width:52px;height:52px;border-radius:8px;object-fit:cover;flex-shrink:0;">` : '';
@@ -1542,12 +1872,57 @@ function renderDashboard() {
   }).join('');
 }
 
+// ─── Timeline navigation state ───────────────────────────────
+STATE._timelineList = [];   // current filtered list of customer names
+STATE._timelineIdx  = 0;    // current index
+
 function openTimeline(customerName) {
+  // Build navigation list from currently filtered dashboard entries
+  const query  = document.getElementById('dash-search')?.value.toLowerCase() || '';
+  const filter = STATE.dashFilter || 'all';
+  let logs = STATE.salesLog;
+  if(filter !== 'all') logs = logs.filter(l=>l.status===filter);
+  if(query) logs = logs.filter(l=>(l.customerName||'').toLowerCase().includes(query)||(l.model||'').toLowerCase().includes(query));
+
+  // unique customer list in display order
+  const seen = new Set();
+  STATE._timelineList = [];
+  logs.forEach(l=>{ if(!seen.has(l.customerName)){ seen.add(l.customerName); STATE._timelineList.push(l.customerName); } });
+
+  STATE._timelineIdx = STATE._timelineList.indexOf(customerName);
+  if(STATE._timelineIdx < 0) STATE._timelineIdx = 0;
+
+  _renderTimeline(customerName);
+  openModal('timeline-modal');
+}
+
+function timelineNav(dir) {
+  const newIdx = STATE._timelineIdx + dir;
+  if(newIdx < 0 || newIdx >= STATE._timelineList.length) return;
+  STATE._timelineIdx = newIdx;
+  _renderTimeline(STATE._timelineList[newIdx]);
+}
+
+function _renderTimeline(customerName) {
+  const total = STATE._timelineList.length;
+  const idx   = STATE._timelineIdx;
+
+  // Update nav indicator + buttons
+  const indicator = document.getElementById('timeline-nav-indicator');
+  if(indicator) indicator.textContent = total > 1 ? `${idx+1} / ${total}` : '';
+  const prevBtn = document.getElementById('timeline-prev-btn');
+  const nextBtn = document.getElementById('timeline-next-btn');
+  if(prevBtn) prevBtn.style.opacity = idx <= 0 ? '.3' : '1';
+  if(nextBtn) nextBtn.style.opacity = idx >= total-1 ? '.3' : '1';
+  if(prevBtn) prevBtn.style.pointerEvents = idx <= 0 ? 'none' : '';
+  if(nextBtn) nextBtn.style.pointerEvents = idx >= total-1 ? 'none' : '';
+
   const visits = STATE.salesLog.filter(v=>v.customerName===customerName)
     .sort((a,b)=>(b.visitNumber||0)-(a.visitNumber||0))
     .slice(0,5);
 
   document.getElementById('timeline-modal-title').textContent = customerName;
+  // update content
   document.getElementById('timeline-content').innerHTML = visits.length ? visits.map(v=>`
     <div class="timeline-item">
       <div class="timeline-dot" style="background:${statusColor(v.status)};"></div>
@@ -1572,7 +1947,6 @@ function openTimeline(customerName) {
     </div>
   `).join('') : '<div class="empty-state">ไม่มีประวัติ</div>';
 
-  openModal('timeline-modal');
 }
 
 window.exportPDF = function(id) {
@@ -1675,27 +2049,118 @@ function setStatsRange(el) {
 }
 
 function renderStats() {
-  if(!STATE.stats) return;
-  const s = STATE.stats[STATE.statsRange];
-  if(!s) return;
+  // Use real salesLog data directly for accurate stats
+  const now = new Date();
+  const thisMonthKey = `${(now.getMonth()+1).toString().padStart(2,'0')}/${now.getFullYear()}`;
+  const thisYearKey  = now.getFullYear().toString();
+  const range = STATE.statsRange || 'month';
+
+  let logs = STATE.salesLog;
+  if(range === 'month') {
+    logs = logs.filter(l=>{
+      const p=(l.visitDate||'').split('/');
+      return `${p[1]}/${p[2]}` === thisMonthKey;
+    });
+  } else if(range === 'year') {
+    logs = logs.filter(l=>{
+      const p=(l.visitDate||'').split('/');
+      return p[2] === thisYearKey;
+    });
+  }
+
+  const total   = logs.length;
+  const ontrack = logs.filter(l=>l.status==='ontrack').length;
+  const follow  = logs.filter(l=>l.status==='follow').length;
+  const waiting = logs.filter(l=>l.status==='waiting').length;
+  const problem = logs.filter(l=>l.status==='problem').length;
 
   document.getElementById('stats-row').innerHTML = `
-    <div class="stat-card"><div class="num">${s.total||0}</div><div class="lbl">เข้าพบ</div></div>
-    <div class="stat-card"><div class="num" style="color:var(--status-ontrack);">${s.onTrack||0}</div><div class="lbl">✅ ตามเป้า</div></div>
-    <div class="stat-card"><div class="num" style="color:var(--status-follow);">${s.follow||0}</div><div class="lbl">🔄 ติดตาม</div></div>
-    <div class="stat-card"><div class="num" style="color:var(--status-problem);">${s.problem||0}</div><div class="lbl">🚨 ปัญหา</div></div>
+    <div class="stat-card"><div class="num">${total}</div><div class="lbl">เข้าพบ</div></div>
+    <div class="stat-card"><div class="num" style="color:var(--status-ontrack);">${ontrack}</div><div class="lbl">✅ ตามเป้า</div></div>
+    <div class="stat-card"><div class="num" style="color:var(--status-follow);">${follow}</div><div class="lbl">🔄 ติดตาม</div></div>
+    <div class="stat-card"><div class="num" style="color:var(--status-problem);">${problem}</div><div class="lbl">🚨 ปัญหา</div></div>
   `;
 
   const renderRank = (arr, id) => {
     document.getElementById(id).innerHTML = arr.length
-      ? arr.map((item,i)=>`<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);">
+      ? arr.map((item,i)=>`<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);cursor:pointer;"
+            onclick="goPage('dashboard');setTimeout(()=>{ document.getElementById('dash-search').value='${escAttr(item.name)}'; renderDashboard(); },50);">
           <span>${i+1}. ${escHtml(item.name)}</span>
           <span style="font-weight:700;color:var(--accent);">${item.count} ครั้ง</span>
         </div>`).join('')
       : '<p style="color:var(--sub);font-size:13px;padding:8px 0;">ไม่มีข้อมูล</p>';
   };
-  renderRank(s.topCustomers||[], 'stats-customers');
-  renderRank(s.topSubjects||[], 'stats-subjects');
+
+  // Top customers from real logs
+  const custMap={};
+  logs.forEach(l=>{ if(l.customerName) custMap[l.customerName]=(custMap[l.customerName]||0)+1; });
+  const topCustomers = Object.entries(custMap).sort((a,b)=>b[1]-a[1]).slice(0,10).map(([name,count])=>({name,count}));
+  renderRank(topCustomers, 'stats-customers');
+
+  // Top subjects
+  const subjMap={};
+  logs.forEach(l=>{ if(l.subject) subjMap[l.subject]=(subjMap[l.subject]||0)+1; });
+  const topSubjects = Object.entries(subjMap).sort((a,b)=>b[1]-a[1]).slice(0,10).map(([name,count])=>({name,count}));
+  renderRank(topSubjects, 'stats-subjects');
+
+  // Weekly followup: status=follow + within last 7 days (need action)
+  const weekAgo = new Date(); weekAgo.setDate(weekAgo.getDate()-7);
+  const weekEnd = new Date(); weekEnd.setDate(weekEnd.getDate()+7);
+  const followups = STATE.salesLog.filter(l=>l.status==='follow');
+  const followEl = document.getElementById('stats-followup-week');
+  if(followEl) followEl.innerHTML = followups.length
+    ? followups.slice(0,10).map(l=>`
+        <div style="padding:8px 0;border-bottom:1px solid var(--border);cursor:pointer;" onclick="openTimeline('${escAttr(l.customerName)}')">
+          <div style="font-weight:600;font-size:13px;">${escHtml(l.customerName)}</div>
+          <div style="font-size:12px;color:var(--sub);">${escHtml(l.subject||'-')} · ${l.visitDate||'-'}</div>
+          ${l.nextAction?`<div style="font-size:12px;color:var(--accent);margin-top:2px;">→ ${escHtml(l.nextAction)}</div>`:''}
+        </div>`).join('')
+    : '<p style="color:var(--sub);font-size:13px;padding:8px 0;">ไม่มีรายการที่ต้องติดตาม</p>';
+
+  // Problems
+  const problems = STATE.salesLog.filter(l=>l.status==='problem');
+  const probEl = document.getElementById('stats-problems');
+  if(probEl) probEl.innerHTML = problems.length
+    ? problems.slice(0,10).map(l=>`
+        <div style="padding:8px 0;border-bottom:1px solid var(--border);cursor:pointer;" onclick="openTimeline('${escAttr(l.customerName)}')">
+          <div style="font-weight:600;font-size:13px;color:#ef4444;">${escHtml(l.customerName)}</div>
+          <div style="font-size:12px;color:var(--sub);">${escHtml(l.subject||'-')} · ${l.visitDate||'-'}</div>
+          ${l.nextAction?`<div style="font-size:12px;color:var(--accent);margin-top:2px;">→ ${escHtml(l.nextAction)}</div>`:''}
+        </div>`).join('')
+    : '<p style="color:var(--sub);font-size:13px;padding:8px 0;">ไม่มีรายการที่มีปัญหา 🎉</p>';
+
+  // Upcoming bookings this week
+  const upcomingEl = document.getElementById('stats-upcoming');
+  if(upcomingEl) {
+    const upcoming = STATE.bookings.filter(b=>{
+      if(b.status==='cancelled') return false;
+      const p=(b.bookingDate||'').split('/');
+      const d=new Date(parseInt(p[2]),parseInt(p[1])-1,parseInt(p[0]));
+      return d>=now && d<=weekEnd;
+    }).sort((a,b)=>compareDates(a.bookingDate,b.bookingDate));
+    upcomingEl.innerHTML = upcoming.length
+      ? upcoming.slice(0,10).map(b=>`
+          <div style="padding:8px 0;border-bottom:1px solid var(--border);">
+            <div style="font-weight:600;font-size:13px;">${escHtml(b.customerName)}</div>
+            <div style="font-size:12px;color:var(--sub);">📅 ${b.bookingDate} 🕐 ${b.bookingTime||'-'}</div>
+            <div style="font-size:12px;margin-top:2px;">${escHtml(b.subject||'-')}</div>
+          </div>`).join('')
+      : '<p style="color:var(--sub);font-size:13px;padding:8px 0;">ไม่มีนัดหมายในสัปดาห์นี้</p>';
+  }
+
+  // Also use backend stats if available for supplemental data
+  if(STATE.stats) {
+    const s = STATE.stats[range] || STATE.stats.all;
+    // Only use backend stats-row if no local salesLog data
+    if(!total && s) {
+      document.getElementById('stats-row').innerHTML = `
+        <div class="stat-card"><div class="num">${s.total||0}</div><div class="lbl">เข้าพบ</div></div>
+        <div class="stat-card"><div class="num" style="color:var(--status-ontrack);">${s.onTrack||0}</div><div class="lbl">✅ ตามเป้า</div></div>
+        <div class="stat-card"><div class="num" style="color:var(--status-follow);">${s.follow||0}</div><div class="lbl">🔄 ติดตาม</div></div>
+        <div class="stat-card"><div class="num" style="color:var(--status-problem);">${s.problem||0}</div><div class="lbl">🚨 ปัญหา</div></div>
+      `;
+    }
+  }
 }
 
 function toggleSection(id) {
@@ -1868,13 +2333,11 @@ document.addEventListener('click', e=>{
   if(!e.target.closest('#fab') && !e.target.closest('#fab-menu')) closeFabMenu();
 });
 
-function openVisitForm(mode) {
-  closeFabMenu();
+function openVisitFormWithBooking(booking) {
+  // Pre-fill form from a selected booking
   STATE.vfAttOurs=[]; STATE.vfAttClient=[];
   STATE.vfImages=[]; STATE.vfFiles=[];
   STATE.vfStatus='ontrack'; STATE.vfLinkMode=false; STATE.vfNextAction=false;
-
-  // Reset form
   ['vf-customer','vf-model','vf-subject','vf-details','vf-next-action'].forEach(id=>{
     const el=document.getElementById(id); if(el) el.value='';
   });
@@ -1889,33 +2352,124 @@ function openVisitForm(mode) {
   document.getElementById('file-upload-area').style.display='block';
   document.getElementById('vf-links-list').innerHTML='';
   document.getElementById('vf-files-list').innerHTML='';
-  renderAttendees(); renderImgArea();
-
-  // Load presets
   renderPresetPills('vf-subject-presets','vf-subject');
   renderPresetPills('next-action-presets','vf-next-action', NEXT_ACTION_PRESETS);
-
-  if(mode==='planned') {
-    // Auto-fill from nearest booking
-    const upcoming = STATE.bookings.filter(b=>{
-      const p=(b.bookingDate||'').split('/');
-      const d=new Date(p[2],parseInt(p[1])-1,parseInt(p[0]));
-      return d >= new Date();
-    }).sort((a,b)=>compareDates(a.bookingDate,b.bookingDate));
-    if(upcoming.length>0){
-      const b=upcoming[0];
-      document.getElementById('vf-customer').value=b.customerName||'';
-      document.getElementById('vf-model').value=b.model||'';
-      document.getElementById('vf-subject').value=b.subject||'';
-      STATE.vfAttOurs=[...(b.attendeesOurs||[])];
-      STATE.vfAttClient=[...(b.attendeesClient||[])];
-      renderAttendees();
-      updateVisitNum(b.customerName);
-    }
+  if(booking) {
+    document.getElementById('vf-customer').value=booking.customerName||'';
+    document.getElementById('vf-model').value=booking.model||'';
+    document.getElementById('vf-subject').value=booking.subject||'';
+    STATE.vfAttOurs=[...(booking.attendeesOurs||[])];
+    STATE.vfAttClient=[...(booking.attendeesClient||[])];
+    renderAttendees();
+    if(booking.customerName) updateVisitNum(booking.customerName);
     document.getElementById('visit-form-title').textContent='📅 บันทึกตามแผนที่นัดไว้';
   } else {
     document.getElementById('visit-form-title').textContent='📋 บันทึกการเข้าพบใหม่';
   }
+  renderImgArea();
+  openModal('visit-form-modal');
+}
+
+// --- ข้อ 5: Loop booking session ---
+STATE._loopBookings   = [];  // รายการนัดที่ยังไม่บันทึก
+STATE._loopIdx        = 0;   // ตำแหน่งปัจจุบัน
+STATE._loopDone       = [];  // รายการที่บันทึกแล้ว (id)
+
+function openBookingSelectModal() {
+  closeFabMenu();
+  const today = todayStr();
+  const todayBookings = STATE.bookings.filter(b=>b.bookingDate===today && b.status!=='cancelled');
+
+  // เริ่ม session loop ใหม่ทุกครั้ง
+  STATE._loopBookings = todayBookings;
+  STATE._loopIdx      = 0;
+  STATE._loopDone     = [];
+
+  _showBookingLoopModal();
+}
+
+function _showBookingLoopModal() {
+  const today = todayStr();
+  const listEl  = document.getElementById('booking-select-list');
+  const titleEl = document.getElementById('booking-select-title');
+  const pending = STATE._loopBookings.filter(b=>!STATE._loopDone.includes(b.id));
+
+  if(STATE._loopBookings.length === 0) {
+    // ไม่มีนัดวันนี้เลย
+    titleEl.textContent = `📅 นัดหมายวันนี้ (${today})`;
+    listEl.innerHTML = `
+      <div style="text-align:center;padding:20px;color:var(--sub);">
+        <div style="font-size:40px;margin-bottom:8px;">📭</div>
+        <div style="font-weight:600;font-size:15px;margin-bottom:4px;">ไม่มีนัดหมายในวันนี้</div>
+        <div style="font-size:13px;margin-bottom:16px;">ต้องการเพิ่มนัดหมายใหม่ก่อนหรือไม่?</div>
+        <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap;">
+          <button onclick="closeModal('booking-select-modal');openBookingForm();"
+            style="padding:10px 20px;background:var(--accent);color:#fff;border-radius:8px;font-size:13px;font-weight:600;border:none;">➕ เพิ่มนัดหมาย</button>
+          <button onclick="closeModal('booking-select-modal');openVisitFormWithBooking(null);"
+            style="padding:10px 20px;border:1px solid var(--border);border-radius:8px;background:var(--card);color:var(--text);font-size:13px;">บันทึกโดยไม่มีนัด</button>
+        </div>
+      </div>`;
+    openModal('booking-select-modal');
+    return;
+  }
+
+  if(pending.length === 0) {
+    // บันทึกครบทุกรายการแล้ว
+    titleEl.textContent = '✅ บันทึกเสร็จสิ้น';
+    listEl.innerHTML = `
+      <div style="text-align:center;padding:24px;">
+        <div style="font-size:48px;margin-bottom:12px;">🎉</div>
+        <div style="font-weight:700;font-size:16px;margin-bottom:6px;">บันทึกครบทุกนัดหมายแล้ว!</div>
+        <div style="color:var(--sub);font-size:13px;">บันทึกสำเร็จ ${STATE._loopDone.length} รายการ</div>
+        <button onclick="closeModal('booking-select-modal');"
+          style="margin-top:16px;padding:10px 28px;background:var(--accent);color:#fff;border-radius:8px;font-size:14px;font-weight:600;border:none;">เสร็จสิ้น</button>
+      </div>`;
+    openModal('booking-select-modal');
+    return;
+  }
+
+  const done = STATE._loopDone.length;
+  const total = STATE._loopBookings.length;
+  titleEl.textContent = `📅 นัดหมายวันนี้ (${done}/${total} บันทึกแล้ว)`;
+
+  listEl.innerHTML = `
+    <div style="font-size:13px;color:var(--sub);margin-bottom:10px;">
+      เลือกรายการที่ต้องการบันทึกรายงาน: (เหลือ ${pending.length} รายการ)
+    </div>
+    ${pending.map(b=>`
+      <div onclick="_startLoopItem('${b.id}');"
+        style="padding:14px;border:2px solid var(--border);border-radius:12px;margin-bottom:10px;cursor:pointer;background:var(--card);transition:.15s;position:relative;"
+        onmouseover="this.style.borderColor='var(--accent)';this.style.background='var(--bg)'"
+        onmouseout="this.style.borderColor='var(--border)';this.style.background='var(--card)'">
+        <div style="font-weight:700;font-size:15px;">${escHtml(b.customerName)}</div>
+        <div style="font-size:12px;color:var(--sub);margin-top:4px;">🕐 ${b.bookingTime||'-'}  &nbsp;📦 ${escHtml(b.model||'-')}</div>
+        <div style="font-size:13px;margin-top:4px;">${escHtml(b.subject||'-')}</div>
+        <div style="position:absolute;right:14px;top:50%;transform:translateY(-50%);color:var(--accent);font-size:20px;">›</div>
+      </div>`).join('')}
+    ${done > 0 ? `<div style="text-align:center;margin-top:8px;font-size:12px;color:var(--sub);">✅ บันทึกแล้ว ${done} รายการ</div>` : ''}
+    <div style="margin-top:12px;text-align:center;">
+      <button onclick="closeModal('booking-select-modal');"
+        style="padding:8px 20px;border:1px solid var(--border);border-radius:8px;background:var(--bg);color:var(--sub);font-size:13px;">ปิด / บันทึกทีหลัง</button>
+    </div>`;
+  openModal('booking-select-modal');
+}
+
+function _startLoopItem(bookingId) {
+  const b = STATE._loopBookings.find(x=>x.id===bookingId);
+  if(!b) return;
+  STATE._loopCurrentId = bookingId;
+  closeModal('booking-select-modal');
+  openVisitFormWithBooking(b);
+}
+
+function openVisitForm(mode) {
+  if(mode==='planned') {
+    openBookingSelectModal();
+    return;
+  }
+  closeFabMenu();
+  openVisitFormWithBooking(null);
+  document.getElementById('visit-form-title').textContent='📋 บันทึกการเข้าพบใหม่';
 
   // Add current user to ours if not present
   if(STATE.user && !STATE.vfAttOurs.includes(STATE.user.firstName+' '+STATE.user.lastName)){
@@ -1965,6 +2519,7 @@ async function autoScheduleFollowup() {
 async function submitVisitForm() {
   const customer = document.getElementById('vf-customer').value.trim();
   if(!customer){ toast('กรุณาระบุชื่อลูกค้า'); return; }
+  showLoading();
 
   const dateInput = document.getElementById('vf-date').value;
   const dateStr = dateInput ? (() => { const p=dateInput.split('-'); return `${p[2]}/${p[1]}/${p[0]}`; })() : todayStr();
@@ -1983,6 +2538,7 @@ async function submitVisitForm() {
     nextAction:STATE.vfNextAction?document.getElementById('vf-next-action').value:'',
     postedBy:STATE.user?.username,
   });
+  hideLoading();
   if(r.ok){
     if(!r.offline){
       STATE.salesLog.unshift({
@@ -2003,6 +2559,12 @@ async function submitVisitForm() {
       toast('✅ บันทึกเรียบร้อย');
     }
     closeModal('visit-form-modal');
+    // ถ้าอยู่ใน loop session ให้กลับไปที่ modal เลือกรายการถัดไป
+    if(STATE._loopCurrentId) {
+      STATE._loopDone.push(STATE._loopCurrentId);
+      STATE._loopCurrentId = null;
+      setTimeout(()=> _showBookingLoopModal(), 400);
+    }
   } else {
     toast('❌ '+r.error);
   }
@@ -2023,6 +2585,7 @@ function openBookingForm() {
 async function submitBookingForm() {
   const cust = document.getElementById('bf-customer').value.trim();
   if(!cust){ toast('กรุณาระบุชื่อลูกค้า'); return; }
+  showLoading();
   const dateInput = document.getElementById('bf-date').value;
   const dateStr = dateInput ? (() => { const p=dateInput.split('-'); return `${p[2]}/${p[1]}/${p[0]}`; })() : '';
   const r = await api('addBooking',{
@@ -2036,6 +2599,7 @@ async function submitBookingForm() {
     notes:document.getElementById('bf-notes').value,
     postedBy:STATE.user?.username,
   });
+  hideLoading();
   if(r.ok){
     STATE.bookings.push({
       id:r.data.id, bookingDate:dateStr, bookingTime:document.getElementById('bf-time').value,
@@ -2187,32 +2751,150 @@ window.setPreset = function(el, targetId, val) {
   el.classList.add('active');
 };
 
+
 // ═══════════════════════════════════════════════════════════════
-// IMAGE UPLOAD
+// GOOGLE DRIVE DIRECT UPLOAD (OAuth2 PKCE)
+// ข้อ 1 & 8: อัปโหลดรูปและไฟล์แนบโดยตรงจาก browser
 // ═══════════════════════════════════════════════════════════════
-function handleImgUpload(e) {
-  const files = Array.from(e.target.files);
-  const remaining = 5 - STATE.vfImages.length;
-  files.slice(0, remaining).forEach(file => {
+const GDRIVE_CLIENT_ID  = '15068641604-u0mle3asm2div94ld1l891s2an8i5tpf.apps.googleusercontent.com';
+const GDRIVE_FOLDER_ID  = '1OseOk6-CGfjfL3hbZbnfDZndrXbDcZ_5';
+const GDRIVE_SCOPE      = 'https://www.googleapis.com/auth/drive.file';
+
+let _gdriveToken = null;
+let _gdriveTokenExp = 0;
+
+// ── OAuth2 Implicit flow (ง่ายที่สุดสำหรับ SPA บน GitHub Pages) ──
+function gdriveAuth() {
+  return new Promise((resolve, reject) => {
+    if(_gdriveToken && Date.now() < _gdriveTokenExp) { resolve(_gdriveToken); return; }
+    const params = new URLSearchParams({
+      client_id    : GDRIVE_CLIENT_ID,
+      redirect_uri : window.location.origin + window.location.pathname,
+      response_type: 'token',
+      scope        : GDRIVE_SCOPE,
+      prompt       : 'consent',
+    });
+    const authUrl = 'https://accounts.google.com/o/oauth2/v2/auth?' + params.toString();
+    const popup = window.open(authUrl, 'gdrive_auth', 'width=500,height=600,top=100,left=100');
+    if(!popup){ reject(new Error('Popup blocked — กรุณาอนุญาต popup สำหรับเว็บนี้')); return; }
+
+    const timer = setInterval(() => {
+      try {
+        if(popup.closed){ clearInterval(timer); reject(new Error('ปิด popup ก่อนอนุญาต')); return; }
+        const url = popup.location.href;
+        if(url && url.includes('access_token')) {
+          clearInterval(timer);
+          popup.close();
+          const hash = new URLSearchParams(url.split('#')[1]);
+          _gdriveToken    = hash.get('access_token');
+          _gdriveTokenExp = Date.now() + (parseInt(hash.get('expires_in')||'3600')-60)*1000;
+          resolve(_gdriveToken);
+        }
+      } catch(e) { /* cross-origin — wait */ }
+    }, 300);
+
+    setTimeout(() => { clearInterval(timer); if(!popup.closed) popup.close(); reject(new Error('Auth timeout')); }, 120000);
+  });
+}
+
+// ── อัปโหลดไฟล์ไปยัง Google Drive ──────────────────────────────
+async function gdriveUpload(file, onProgress) {
+  const token = await gdriveAuth();
+  const metadata = {
+    name    : file.name,
+    parents : [GDRIVE_FOLDER_ID],
+    mimeType: file.type || 'application/octet-stream',
+  };
+  const form = new FormData();
+  form.append('metadata', new Blob([JSON.stringify(metadata)], {type:'application/json'}));
+  form.append('file', file);
+
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open('POST', 'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,webContentLink,webViewLink');
+    xhr.setRequestHeader('Authorization', 'Bearer ' + token);
+    if(onProgress) xhr.upload.onprogress = e => { if(e.lengthComputable) onProgress(Math.round(e.loaded/e.total*100)); };
+    xhr.onload = () => {
+      if(xhr.status === 200 || xhr.status === 201) {
+        const r = JSON.parse(xhr.responseText);
+        // Make file public viewable
+        _gdriveSetPublic(token, r.id).catch(()=>{});
+        const url = `https://drive.google.com/uc?export=view&id=${r.id}`;
+        resolve({ ok:true, url, id:r.id });
+      } else {
+        reject(new Error('Upload failed: ' + xhr.status + ' ' + xhr.responseText));
+      }
+    };
+    xhr.onerror = () => reject(new Error('Network error'));
+    xhr.send(form);
+  });
+}
+
+async function _gdriveSetPublic(token, fileId) {
+  await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}/permissions`, {
+    method : 'POST',
+    headers: { 'Authorization':'Bearer '+token, 'Content-Type':'application/json' },
+    body   : JSON.stringify({ role:'reader', type:'anyone' }),
+  });
+}
+
+// ── Compress image before upload ────────────────────────────────
+function compressImage(file, maxPx=1400, quality=0.82) {
+  return new Promise(resolve => {
     const reader = new FileReader();
-    reader.onload = (ev) => {
-      // Compress
+    reader.onload = ev => {
       const img = new Image();
       img.onload = () => {
-        const canvas = document.createElement('canvas');
-        const MAX = 1200;
         let w=img.width, h=img.height;
-        if(w>MAX||h>MAX){ const r=Math.min(MAX/w,MAX/h); w=w*r; h=h*r; }
+        if(w>maxPx||h>maxPx){ const r=Math.min(maxPx/w,maxPx/h); w*=r; h*=r; }
+        const canvas = document.createElement('canvas');
         canvas.width=w; canvas.height=h;
         canvas.getContext('2d').drawImage(img,0,0,w,h);
-        STATE.vfImages.push(canvas.toDataURL('image/jpeg',0.8));
-        renderImgArea();
+        canvas.toBlob(blob=>resolve(new File([blob], file.name.replace(/\.\w+$/,'.jpg'), {type:'image/jpeg'})), 'image/jpeg', quality);
       };
       img.src = ev.target.result;
     };
     reader.readAsDataURL(file);
   });
-  e.target.value='';
+}
+
+// ═══════════════════════════════════════════════════════════════
+// IMAGE UPLOAD (via Google Drive API)
+// ═══════════════════════════════════════════════════════════════
+async function handleImgUpload(e) {
+  const files = Array.from(e.target.files);
+  const remaining = 5 - STATE.vfImages.length;
+  if(!remaining){ toast('อัปโหลดได้สูงสุด 5 รูป'); return; }
+  e.target.value = '';
+
+  for(const file of files.slice(0, remaining)) {
+    // Show local preview immediately
+    const localUrl = await new Promise(res => {
+      const r = new FileReader(); r.onload = ev => res(ev.target.result); r.readAsDataURL(file);
+    });
+    STATE.vfImages.push(localUrl);
+    renderImgArea();
+
+    // Upload to Drive
+    toast('⏳ กำลังอัปโหลดรูป...');
+    showLoading();
+    try {
+      const compressed = await compressImage(file);
+      const result = await gdriveUpload(compressed, pct => toast(`⏳ อัปโหลด ${pct}%`));
+      if(result.ok) {
+        // Replace local preview with Drive URL
+        const idx = STATE.vfImages.lastIndexOf(localUrl);
+        if(idx >= 0) STATE.vfImages[idx] = result.url;
+        renderImgArea();
+        toast('✅ อัปโหลดรูปแล้ว');
+      }
+    } catch(err) {
+      toast('❌ อัปโหลดไม่สำเร็จ: ' + err.message);
+      // Keep local preview for now (will be base64 in submission)
+    } finally {
+      hideLoading();
+    }
+  }
 }
 
 function renderImgArea() {
@@ -2232,21 +2914,25 @@ function renderImgArea() {
 async function handleFileUpload(e) {
   const file = e.target.files[0];
   if(!file) return;
-  if(file.size > 20*1024*1024){ toast('ไฟล์ขนาดเกิน 20MB'); return; }
-  const reader = new FileReader();
-  reader.onload = async(ev) => {
-    const base64 = ev.target.result.split(',')[1];
-    const r = await api('uploadFile',{ data:base64, mimeType:file.type, filename:file.name });
-    if(r.ok){
-      STATE.vfFiles.push({ name:file.name, url:r.data.url });
-      document.getElementById('vf-files-list').innerHTML = STATE.vfFiles.map((f,i)=>`
+  if(file.size > 50*1024*1024){ toast('ไฟล์ขนาดเกิน 50MB'); return; }
+  e.target.value = '';
+  toast('⏳ กำลังอัปโหลดไฟล์...');
+  showLoading();
+  try {
+    const result = await gdriveUpload(file, pct => toast(`⏳ อัปโหลด ${pct}%`));
+    if(result.ok) {
+      STATE.vfFiles.push({ name:file.name, url:result.url });
+      const listEl = document.getElementById('vf-files-list');
+      listEl.innerHTML = STATE.vfFiles.map((f,i)=>`
         <div class="file-item">📎 <a href="${f.url}" target="_blank">${escHtml(f.name)}</a>
         <button onclick="STATE.vfFiles.splice(${i},1);document.getElementById('vf-files-list').innerHTML=''" style="margin-left:auto;color:#ef4444;">✕</button></div>`).join('');
-      toast('✅ อัปโหลดแล้ว');
+      toast('✅ อัปโหลดไฟล์แล้ว');
     }
-  };
-  reader.readAsDataURL(file);
-  e.target.value='';
+  } catch(err) {
+    toast('❌ อัปโหลดไม่สำเร็จ: ' + err.message);
+  } finally {
+    hideLoading();
+  }
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -2311,14 +2997,37 @@ function setActRange(el) {
 
 function renderActivity() {
   const q = (document.getElementById('act-search')?.value||'').toLowerCase();
+  const limitEl = document.getElementById('act-limit');
+  const limit = limitEl ? parseInt(limitEl.value) : 15;
+  const dateFrom = document.getElementById('act-date-from')?.value || '';
+  const dateTo   = document.getElementById('act-date-to')?.value   || '';
   const now = new Date();
+  // today key: dd/MM/yyyy — matches createdAt format from GAS (nowStr)
   const todayKey = `${now.getDate().toString().padStart(2,'0')}/${(now.getMonth()+1).toString().padStart(2,'0')}/${now.getFullYear()}`;
 
-  let logs = STATE.activityLog;
+  let logs = [...STATE.activityLog];
+
+  // Range filter — use startsWith(todayKey) for 'today' (robust even with time suffix)
   if(STATE.actRange==='today')  logs=logs.filter(l=>(l.createdAt||'').startsWith(todayKey));
-  if(STATE.actRange==='week')   logs=logs.filter(l=>{ const d=parseDate(l.createdAt); return d&&(now-d)<7*864e5; });
-  if(STATE.actRange==='month')  logs=logs.filter(l=>{ const d=parseDate(l.createdAt); return d&&(now-d)<30*864e5; });
+  if(STATE.actRange==='week')   logs=logs.filter(l=>{ const d=parseActivityDate(l.createdAt); return d&&(now-d)<7*864e5; });
+  if(STATE.actRange==='month')  logs=logs.filter(l=>{ const d=parseActivityDate(l.createdAt); return d&&(now-d)<30*864e5; });
+  if(STATE.actRange==='year')   logs=logs.filter(l=>{ const d=parseActivityDate(l.createdAt); return d&&(now-d)<365*864e5; });
+
+  // Custom date range filter
+  if(dateFrom) {
+    const fromD = new Date(dateFrom);
+    logs = logs.filter(l=>{ const d=parseDate(l.createdAt); return d && d>=fromD; });
+  }
+  if(dateTo) {
+    const toD = new Date(dateTo); toD.setHours(23,59,59);
+    logs = logs.filter(l=>{ const d=parseDate(l.createdAt); return d && d<=toD; });
+  }
+
+  // Search filter
   if(q) logs=logs.filter(l=>(l.username+l.detail+l.type).toLowerCase().includes(q));
+
+  const total = logs.length;
+  if(limit > 0) logs = logs.slice(0, limit);
 
   const container = document.getElementById('activity-list');
   if(!logs.length){ container.innerHTML='<div class="empty-state">ไม่มีรายการ</div>'; return; }
@@ -2335,11 +3044,73 @@ function renderActivity() {
       </div>
     </div>`;
   }).join('');
+
+  // Show count info
+  if(total > 0) {
+    const info = document.createElement('div');
+    info.style.cssText='text-align:center;font-size:12px;color:var(--sub);padding:8px 0;';
+    info.textContent = `แสดง ${logs.length} จาก ${total} รายการ`;
+    container.appendChild(info);
+  }
 }
 
 // ═══════════════════════════════════════════════════════════════
 // PROFILE
 // ═══════════════════════════════════════════════════════════════
+STATE._profileRange = 'month';
+
+function setProfileRange(el) {
+  document.querySelectorAll('#page-profile .filter-pill').forEach(p=>p.classList.remove('active'));
+  el.classList.add('active');
+  STATE._profileRange = el.dataset.prange;
+  renderProfileStats();
+}
+
+function renderProfileStats() {
+  const u = STATE.user;
+  if(!u) return;
+  const now = new Date();
+  const range = STATE._profileRange || 'month';
+
+  // Filter salesLog for this user + range
+  let myLogs = STATE.salesLog.filter(l=>l.postedBy===u.username);
+  if(range === 'week') {
+    const weekAgo = new Date(); weekAgo.setDate(weekAgo.getDate()-7);
+    myLogs = myLogs.filter(l=>{ const d=parseDate(l.visitDate); return d&&d>=weekAgo; });
+  } else if(range === 'month') {
+    const key = `${(now.getMonth()+1).toString().padStart(2,'0')}/${now.getFullYear()}`;
+    myLogs = myLogs.filter(l=>{ const p=(l.visitDate||'').split('/'); return `${p[1]}/${p[2]}`===key; });
+  } else if(range === 'year') {
+    const yr = now.getFullYear().toString();
+    myLogs = myLogs.filter(l=>{ const p=(l.visitDate||'').split('/'); return p[2]===yr; });
+  } else if(range === '3y') {
+    const cutoff = new Date(); cutoff.setFullYear(cutoff.getFullYear()-3);
+    myLogs = myLogs.filter(l=>{ const d=parseDate(l.visitDate); return d&&d>=cutoff; });
+  } else if(range === '5y') {
+    const cutoff = new Date(); cutoff.setFullYear(cutoff.getFullYear()-5);
+    myLogs = myLogs.filter(l=>{ const d=parseDate(l.visitDate); return d&&d>=cutoff; });
+  }
+  // 'all' = no filter
+
+  document.getElementById('prof-visits').textContent  = myLogs.length;
+  document.getElementById('prof-ontrack').textContent = myLogs.filter(l=>l.status==='ontrack').length;
+  document.getElementById('prof-follow').textContent  = myLogs.filter(l=>l.status==='follow').length;
+  document.getElementById('prof-problem').textContent = myLogs.filter(l=>l.status==='problem').length;
+
+  // Top customers for this user
+  const custMap = {};
+  myLogs.forEach(l=>{ if(l.customerName) custMap[l.customerName]=(custMap[l.customerName]||0)+1; });
+  const top = Object.entries(custMap).sort((a,b)=>b[1]-a[1]).slice(0,5);
+  const el = document.getElementById('prof-top-customers');
+  if(el) el.innerHTML = top.length
+    ? top.map(([ name,count],i)=>`
+        <div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border);">
+          <span>${i+1}. ${escHtml(name)}</span>
+          <span style="font-weight:700;color:var(--accent);">${count} ครั้ง</span>
+        </div>`).join('')
+    : '<p style="color:var(--sub);font-size:13px;padding:8px 0;">ยังไม่มีข้อมูล</p>';
+}
+
 function renderProfile() {
   const u = STATE.user;
   if(!u) return;
@@ -2356,18 +3127,8 @@ function renderProfile() {
   document.getElementById('pf-notes').value = u.notes||'';
   updateTopAvatar();
 
-  // Stats
-  const now = new Date();
-  const thisMonth = `${(now.getMonth()+1).toString().padStart(2,'0')}/${now.getFullYear()}`;
-  const myLogs = STATE.salesLog.filter(l=>{
-    if(l.postedBy!==u.username) return false;
-    const p=(l.visitDate||'').split('/');
-    return `${p[1]}/${p[2]}`===thisMonth;
-  });
-  document.getElementById('prof-visits').textContent  = myLogs.length;
-  document.getElementById('prof-ontrack').textContent = myLogs.filter(l=>l.status==='ontrack').length;
-  document.getElementById('prof-follow').textContent  = myLogs.filter(l=>l.status==='follow').length;
-  document.getElementById('prof-problem').textContent = myLogs.filter(l=>l.status==='problem').length;
+  // Stats — use current range (default month)
+  renderProfileStats();
 
   // Offline drafts
   if(STATE.offlineDrafts.length){
@@ -2415,17 +3176,25 @@ function triggerAvatarUpload() { document.getElementById('avatar-input').click()
 
 async function uploadAvatar(e) {
   const file = e.target.files[0]; if(!file) return;
-  const reader = new FileReader();
-  reader.onload = async(ev) => {
-    const base64 = ev.target.result.split(',')[1];
-    const r = await api('uploadAvatar',{ data:base64, mimeType:file.type, filename:file.name, username:STATE.user.username });
-    if(r.ok){
-      STATE.user.avatarUrl = r.data.url||ev.target.result;
-      localStorage.setItem('ats_user',JSON.stringify({...STATE.user,savedAt:Date.now()}));
-      renderProfile(); toast('✅ อัปโหลดรูปแล้ว');
+  toast('⏳ กำลังอัปโหลดรูปโปรไฟล์...');
+  showLoading();
+  try {
+    const compressed = await compressImage(file, 400, 0.9);
+    const result = await gdriveUpload(compressed);
+    if(result.ok) {
+      STATE.user.avatarUrl = result.url;
+      localStorage.setItem('ats_user', JSON.stringify({...STATE.user, savedAt:Date.now()}));
+      // Save to backend too
+      await api('uploadAvatar', { url:result.url, username:STATE.user.username });
+      renderProfile();
+      updateTopAvatar();
+      toast('✅ อัปโหลดรูปโปรไฟล์แล้ว');
     }
-  };
-  reader.readAsDataURL(file);
+  } catch(err) {
+    toast('❌ อัปโหลดไม่สำเร็จ: ' + err.message);
+  } finally {
+    hideLoading();
+  }
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -2439,9 +3208,29 @@ function initSettings() {
     <div class="color-swatch ${c===saved?'active':''}" style="background:${c};"
       onclick="setAccent('${c}')"></div>`).join('');
 
+  // Custom color picker
+  const cp = document.getElementById('custom-color-picker');
+  const cv = document.getElementById('custom-color-val');
+  if(cp){ cp.value = saved; }
+  if(cv){ cv.textContent = saved; }
+
   // Dark toggle
   const isDark = localStorage.getItem('ats_dark')==='1';
   if(isDark){ document.documentElement.dataset.theme='dark'; document.getElementById('dark-toggle').classList.add('on'); }
+
+  // Radius slider
+  const savedRadius = localStorage.getItem('ats_radius') || '12';
+  const rs = document.getElementById('radius-slider');
+  const rv = document.getElementById('radius-val');
+  if(rs){ rs.value = savedRadius; }
+  if(rv){ rv.textContent = savedRadius; }
+
+  // Font size slider
+  const savedFont = localStorage.getItem('ats_fontsize') || '15';
+  const fs = document.getElementById('fontsize-slider');
+  const fv = document.getElementById('fontsize-val');
+  if(fs){ fs.value = savedFont; }
+  if(fv){ fv.textContent = savedFont; }
 
   // Preset textarea
   document.getElementById('preset-topics').value = getPresets().join(', ');
@@ -2452,6 +3241,10 @@ function loadSettings() {
   if(accent) applyAccent(accent);
   const dark = localStorage.getItem('ats_dark')==='1';
   if(dark) document.documentElement.dataset.theme='dark';
+  const radius = localStorage.getItem('ats_radius');
+  if(radius) { document.documentElement.style.setProperty('--radius', radius+'px'); }
+  const fontsize = localStorage.getItem('ats_fontsize');
+  if(fontsize) { document.body.style.fontSize = fontsize+'px'; }
 }
 
 function toggleDark() {
@@ -2464,6 +3257,25 @@ function setAccent(color) {
   applyAccent(color);
   localStorage.setItem('ats_accent',color);
   document.querySelectorAll('.color-swatch').forEach(s=>{ s.classList.toggle('active', s.style.background===color); });
+  const cp = document.getElementById('custom-color-picker');
+  const cv = document.getElementById('custom-color-val');
+  if(cp) cp.value = color;
+  if(cv) cv.textContent = color;
+}
+
+function setRadius(val) {
+  document.documentElement.style.setProperty('--radius', val+'px');
+  localStorage.setItem('ats_radius', val);
+  const el = document.getElementById('radius-val');
+  if(el) el.textContent = val;
+}
+
+function setFontSize(val) {
+  document.documentElement.style.setProperty('font-size', val+'px');
+  document.body.style.fontSize = val+'px';
+  localStorage.setItem('ats_fontsize', val);
+  const el = document.getElementById('fontsize-val');
+  if(el) el.textContent = val;
 }
 
 function applyAccent(color) {
@@ -2488,6 +3300,8 @@ function resetSettings() {
   localStorage.removeItem('ats_accent');
   localStorage.removeItem('ats_dark');
   localStorage.removeItem('ats_presets');
+  localStorage.removeItem('ats_radius');
+  localStorage.removeItem('ats_fontsize');
   location.reload();
 }
 
@@ -2578,6 +3392,21 @@ function todayInputValue() {
   return `${d.getFullYear()}-${(d.getMonth()+1).toString().padStart(2,'0')}-${d.getDate().toString().padStart(2,'0')}`;
 }
 
+// Parse activity log date "dd/MM/yyyy HH:mm" or "dd/MM/yyyy"
+function parseActivityDate(str) {
+  if(!str) return null;
+  // format: "dd/MM/yyyy HH:mm" or "dd/MM/yyyy"
+  const parts = str.split(' ');
+  const dateParts = parts[0].split('/');
+  if(dateParts.length < 3) return null;
+  const d = new Date(parseInt(dateParts[2]), parseInt(dateParts[1])-1, parseInt(dateParts[0]));
+  if(parts[1]) {
+    const t = parts[1].split(':');
+    d.setHours(parseInt(t[0])||0, parseInt(t[1])||0, 0);
+  }
+  return isNaN(d.getTime()) ? null : d;
+}
+
 function todayStr() {
   const d = new Date();
   return `${d.getDate().toString().padStart(2,'0')}/${(d.getMonth()+1).toString().padStart(2,'0')}/${d.getFullYear()}`;
@@ -2600,6 +3429,16 @@ function compareDates(a,b) {
 document.getElementById('login-pass').addEventListener('keydown', e=>{ if(e.key==='Enter') doLogin(); });
 document.getElementById('login-user').addEventListener('keydown', e=>{ if(e.key==='Enter') document.getElementById('login-pass').focus(); });
 
+// ESC key: close any open modal or lightbox
+document.addEventListener('keydown', e=>{
+  if(e.key !== 'Escape') return;
+  if(document.getElementById('lightbox').classList.contains('open')){ closeLightbox(); return; }
+  const openModal = document.querySelector('.modal-overlay.open');
+  if(openModal){ openModal.classList.remove('open'); return; }
+  if(document.getElementById('confirm-dialog').classList.contains('open')){ closeConfirm(); return; }
+  if(document.getElementById('fab-menu').classList.contains('open')){ closeFabMenu(); return; }
+});
+
 // Online: retry drafts
 window.addEventListener('online', ()=>{
   if(STATE.offlineDrafts.length > 0) {
@@ -2612,6 +3451,20 @@ window.addEventListener('online', ()=>{
 // ═══════════════════════════════════════════════════════════════
 checkSavedLogin();
 </script>
+
+
+<!-- Booking Select Modal (Fix 5) -->
+<div class="modal-overlay" id="booking-select-modal">
+  <div class="modal-box" style="max-width:480px;">
+    <button class="modal-close" onclick="closeModal('booking-select-modal')">✕</button>
+    <div class="modal-title" id="booking-select-title">📅 เลือกนัดหมายที่ต้องการบันทึก</div>
+    <div id="booking-select-list" style="margin-top:12px;"></div>
+    <div style="margin-top:12px;display:flex;gap:8px;justify-content:flex-end;">
+      <button onclick="closeModal('booking-select-modal');openVisitForm('new');" style="padding:8px 16px;border:1px solid var(--border);border-radius:8px;background:var(--card);color:var(--accent);font-size:13px;">+ บันทึกใหม่ (ไม่มีนัด)</button>
+      <button onclick="closeModal('booking-select-modal');" style="padding:8px 16px;border:1px solid var(--border);border-radius:8px;background:var(--bg);color:var(--sub);font-size:13px;">ยกเลิก</button>
+    </div>
+  </div>
+</div>
 
 <!-- PWA Manifest (inline for GitHub Pages) -->
 <script>
